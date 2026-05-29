@@ -1,3 +1,23 @@
+"""
+ID3 tag writer for downloaded MP3 files.
+
+Public surface:
+    tag_file(path, meta) — writes standard tags and embeds album art.
+        All operations are best-effort: a failure on any individual tag is
+        silently swallowed so a bad Spotify metadata field or a CDN error
+        never prevents the rest of the tags from being written.
+
+Implementation notes:
+- Standard text tags (title, artist, album, tracknumber) use mutagen's
+  EasyID3 API which handles frame encoding automatically.
+- Album art requires raw ID3 access (APIC frame) because EasyID3 doesn't
+  expose binary frames. The two passes (EasyID3 save, then ID3 APIC save)
+  are intentional — writing both in one ID3 pass would require manually
+  constructing all text frames.
+- MIME type is read from the Content-Type response header; magic-byte
+  detection is the fallback for servers that omit or mislabel the header.
+"""
+
 from pathlib import Path
 
 import requests
@@ -9,7 +29,20 @@ from .spotify import TrackMeta
 
 
 def tag_file(path: Path, meta: TrackMeta) -> None:
-    """Embeds ID3 tags. Silently skips any tag if data is unavailable."""
+    """
+    Write ID3 tags to an MP3 file.
+
+    Writes title, artist, album, track number, and album art (front cover).
+    Each field is skipped silently if the data is empty or an error occurs,
+    so partial metadata is always preferred over no metadata.
+
+    Args:
+        path: Path to the .mp3 file to tag. Must exist and be a valid MPEG
+              audio file; an unrecoverable parse error causes an early return
+              with no tags written.
+        meta: Track metadata source. Fields are taken as-is from Spotify;
+              empty strings and None values are handled gracefully.
+    """
     try:
         audio = EasyID3(path)
     except ID3Error:

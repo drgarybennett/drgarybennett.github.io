@@ -1,3 +1,24 @@
+"""
+YouTube downloader that converts search results to 192 kbps MP3 files.
+
+Public surface:
+    download_track(meta, output_dir, ...) — downloads one track and returns
+        the output Path, or None if the track could not be found/downloaded.
+
+Implementation notes:
+- Uses yt-dlp's Python API (no subprocess) via the injectable ydl_class
+  parameter, which allows unit tests to pass a mock instead of real YoutubeDL.
+- The YouTube search query is "<artist> <title> official audio" via the
+  ytsearch1: prefix so yt-dlp picks exactly one result.
+- noplaylist: True is always set to prevent yt-dlp from accidentally
+  downloading an entire YouTube playlist when the first search result is one.
+- ffmpeg converts the downloaded audio to MP3 as a post-processor step;
+  download_track verifies the .mp3 file exists afterwards so a silent
+  ffmpeg failure is caught and reported as None rather than corrupting state.
+- Both DownloadError and ExtractorError are caught and retried; the latter
+  covers removed or geo-blocked videos that yt-dlp raises differently.
+"""
+
 from pathlib import Path
 from typing import Optional, Type
 
@@ -16,9 +37,23 @@ def download_track(
     ydl_class: Type = yt_dlp.YoutubeDL,
 ) -> Optional[Path]:
     """
-    Downloads and converts a single track to MP3.
-    Returns the output Path on success, None on failure.
-    Skips (returns existing path) if the file already exists.
+    Search YouTube for a track and download it as a 192 kbps MP3.
+
+    Args:
+        meta:        Track metadata used to build the search query and output
+                     filename.
+        output_dir:  Directory to save the MP3 in. Created if it doesn't exist.
+        ffmpeg_path: Absolute path to the ffmpeg binary. Pass this when ffmpeg
+                     is not on PATH (common on Windows). None uses PATH lookup.
+        ydl_class:   yt-dlp class to instantiate. Override in tests to inject
+                     a mock without making real network calls.
+
+    Returns:
+        Path to the downloaded .mp3 file on success.
+        None if the track could not be found on YouTube, the download failed
+        after 3 retries, or ffmpeg post-processing did not produce a .mp3 file.
+        If the file already exists the existing Path is returned immediately
+        (resume-friendly — no re-download).
     """
     output_path = output_dir / meta.output_filename
     if output_path.exists():

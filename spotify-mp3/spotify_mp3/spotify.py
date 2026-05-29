@@ -1,3 +1,20 @@
+"""
+Spotify Web API client and track-metadata types.
+
+Public surface:
+    TrackMeta   — frozen dataclass holding everything downstream needs
+    SpotifyClient.get_tracks(url_or_uri) — resolves a Spotify URL or URI to a
+        (context_name, [TrackMeta]) tuple, handling tracks, playlists, and albums.
+
+Authentication is read automatically from the environment variables
+SPOTIFY_CLIENT_ID and SPOTIFY_CLIENT_SECRET (set by the caller before import).
+
+All Spotify API calls are wrapped with per-call retry (3 attempts, exponential
+backoff 2–30 s) so transient 429 / 5xx responses are handled transparently.
+Retries wrap individual calls rather than the whole pagination loop to avoid
+re-fetching already-consumed pages on a mid-loop failure.
+"""
+
 import re
 from dataclasses import dataclass
 from typing import Optional
@@ -11,6 +28,23 @@ _spotify_retry = retry(stop=stop_after_attempt(3), wait=wait_exponential(multipl
 
 @dataclass(slots=True)
 class TrackMeta:
+    """
+    Immutable snapshot of a Spotify track's metadata.
+
+    Attributes:
+        title:           Track title as returned by Spotify.
+        artist:          Primary artist name.
+        album:           Album title.
+        track_number:    Pre-formatted for EasyID3, e.g. "3" or "3/12".
+                         Empty string when Spotify doesn't provide it.
+        album_art_url:   URL of the highest-resolution album cover image,
+                         or None when no image is available.
+        spotify_uri:     Canonical Spotify URI, e.g. "spotify:track:abc123".
+                         Used as a stable identifier in failed.txt.
+        output_filename: Sanitized "<Artist> - <Title>.mp3" ready to use as a
+                         filename on any OS.
+    """
+
     title: str
     artist: str
     album: str
@@ -21,14 +55,39 @@ class TrackMeta:
 
 
 class SpotifyClient:
+    """
+    Thin wrapper around spotipy that returns typed TrackMeta lists.
+
+    Instantiation reads SPOTIFY_CLIENT_ID and SPOTIFY_CLIENT_SECRET from the
+    environment via SpotifyClientCredentials; raises SpotifyOauthError if
+    either variable is missing.
+    """
+
     def __init__(self):
         auth = SpotifyClientCredentials()
         self._sp = spotipy.Spotify(auth_manager=auth)
 
     def get_tracks(self, url_or_uri: str) -> tuple[str, list[TrackMeta]]:
         """
-        Returns (context_name, tracks).
-        Accepts Spotify track, playlist, or album URL/URI.
+        Resolve a Spotify URL or URI to a list of tracks.
+
+        Args:
+            url_or_uri: Any of:
+                - https://open.spotify.com/track/<id>[?si=...]
+                - https://open.spotify.com/playlist/<id>[?si=...]
+                - https://open.spotify.com/album/<id>[?si=...]
+                - spotify:track:<id>  /  spotify:playlist:<id>  /  spotify:album:<id>
+
+        Returns:
+            (context_name, tracks) where context_name is the playlist/album
+            title or "<Artist> - <Title>" for single tracks, and tracks is a
+            list of TrackMeta (may be empty if the playlist contains only
+            deleted/None entries).
+
+        Raises:
+            ValueError: URL/URI format is not recognised.
+            spotipy.exceptions.SpotifyException: Spotify API error (e.g. 404
+                for a private or non-existent playlist).
         """
         clean = _strip_query_params(url_or_uri)
         kind = _detect_kind(clean)

@@ -1,3 +1,20 @@
+"""
+Command-line entry point for spotify-mp3.
+
+Usage:
+    spotify-mp3 <spotify-url-or-uri> [options]
+
+The main() function is registered as the console_scripts entry point in
+pyproject.toml, so after `pip install -e .` the tool is available as the
+`spotify-mp3` command.
+
+Pipeline for each track:
+    1. SpotifyClient.get_tracks()  — fetch metadata from Spotify API
+    2. download_track()            — search YouTube, download, convert to MP3
+    3. tag_file()                  — embed ID3 tags (best-effort)
+    4. failed.txt                  — log any tracks that couldn't be downloaded
+"""
+
 import argparse
 import sys
 from pathlib import Path
