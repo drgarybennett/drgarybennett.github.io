@@ -1,0 +1,22 @@
+name: spotify-mp3 tests
+on:
+  push:
+    paths:
+      - "spotify-mp3/**"
+  pull_request:
+    paths:
+      - "spotify-mp3/**"
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install dependencies
+        working-directory: spotify-mp3
+        run: pip install -r requirements.txt pytest
+      - name: Run tests
+        working-directory: spotify-mp3
+        run: pytest tests/ -v

@@ -1,0 +1,11 @@
+{
+  "name": "Bohemian Rhapsody",
+  "artists": [{"name": "Queen"}],
+  "album": {
+    "name": "A Night at the Opera",
+    "images": [{"url": "https://example.com/art.jpg"}],
+    "total_tracks": 12
+  },
+  "track_number": 11,
+  "uri": "spotify:track:7tFiyTwD0nx5a1eklYtX2J"
+}
