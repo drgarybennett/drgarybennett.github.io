@@ -4,6 +4,8 @@ from typing import Optional, Type
 import yt_dlp
 from tenacity import retry, retry_if_exception_type, stop_after_attempt, wait_exponential
 
+_DOWNLOAD_ERRORS = (yt_dlp.utils.DownloadError, yt_dlp.utils.ExtractorError)
+
 from .spotify import TrackMeta
 
 
@@ -45,7 +47,7 @@ def download_track(
 
     try:
         _run_download(query, opts, ydl_class)
-    except yt_dlp.utils.DownloadError:
+    except _DOWNLOAD_ERRORS:
         return None
 
     if not output_path.exists():
@@ -56,11 +58,9 @@ def download_track(
 @retry(
     stop=stop_after_attempt(3),
     wait=wait_exponential(multiplier=1, min=2, max=30),
-    retry=retry_if_exception_type(yt_dlp.utils.DownloadError),
+    retry=retry_if_exception_type(_DOWNLOAD_ERRORS),
     reraise=True,
 )
 def _run_download(query: str, opts: dict, ydl_class: type) -> None:
     with ydl_class(opts) as ydl:
-        info = ydl.extract_info(query, download=True)
-        if not info or not info.get("entries"):
-            raise yt_dlp.utils.DownloadError("No results found")
+        ydl.extract_info(query, download=True)

@@ -6,6 +6,8 @@ import spotipy
 from spotipy.oauth2 import SpotifyClientCredentials
 from tenacity import retry, stop_after_attempt, wait_exponential
 
+_spotify_retry = retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, min=2, max=30))
+
 
 @dataclass(slots=True)
 class TrackMeta:
@@ -41,9 +43,10 @@ class SpotifyClient:
             return self._fetch_all_album_tracks(clean)
         raise ValueError(f"Unrecognized Spotify URL/URI: {url_or_uri}")
 
-    @retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, min=2, max=30))
     def _fetch_all_playlist_tracks(self, uri: str) -> tuple[str, list[TrackMeta]]:
-        playlist = self._sp.playlist(uri, fields="name,tracks,next")
+        playlist = _spotify_retry(self._sp.playlist)(
+            uri, fields="name,tracks(items(track(name,artists,album,track_number,uri)),next,total)"
+        )
         name = playlist["name"]
         results = playlist["tracks"]
         tracks = []
@@ -53,12 +56,11 @@ class SpotifyClient:
                     tracks.append(_track_to_meta(item["track"]))
             if not results["next"]:
                 break
-            results = self._sp.next(results)
+            results = _spotify_retry(self._sp.next)(results)
         return name, tracks
 
-    @retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, min=2, max=30))
     def _fetch_all_album_tracks(self, uri: str) -> tuple[str, list[TrackMeta]]:
-        album = self._sp.album(uri)
+        album = _spotify_retry(self._sp.album)(uri)
         name = album["name"]
         results = album["tracks"]
         tracks = []
@@ -69,7 +71,7 @@ class SpotifyClient:
                 tracks.append(_track_to_meta(t))
             if not results["next"]:
                 break
-            results = self._sp.next(results)
+            results = _spotify_retry(self._sp.next)(results)
         return name, tracks
 
 

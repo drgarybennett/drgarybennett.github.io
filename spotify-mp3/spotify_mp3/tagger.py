@@ -44,7 +44,16 @@ def _embed_album_art(path: Path, url: str) -> None:
         resp = requests.get(url, timeout=10)
         resp.raise_for_status()
         image_data = resp.content
-        mime = "image/jpeg" if image_data[:2] == b"\xff\xd8" else "image/png"
+        mime = resp.headers.get("content-type", "").split(";")[0].strip()
+        if not mime.startswith("image/"):
+            if image_data[:2] == b"\xff\xd8":
+                mime = "image/jpeg"
+            elif image_data[:8] == b"\x89PNG\r\n\x1a\n":
+                mime = "image/png"
+            elif image_data[:4] == b"RIFF" and image_data[8:12] == b"WEBP":
+                mime = "image/webp"
+            else:
+                mime = "image/jpeg"
     except Exception:
         return
 
