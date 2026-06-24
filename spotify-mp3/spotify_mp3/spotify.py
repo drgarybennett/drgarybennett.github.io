@@ -127,8 +127,10 @@ class SpotifyClient:
         tracks = []
         while True:
             for item in results["items"]:
-                if item and item.get("track"):
-                    tracks.append(_track_to_meta(item["track"]))
+                # New Spotify API uses "item" key; old API used "track"
+                track = item.get("item") or item.get("track") if item else None
+                if track and track.get("type") != "episode":
+                    tracks.append(_track_to_meta(track))
             if not results["next"]:
                 break
             results = _spotify_retry(self._sp.next)(results)
