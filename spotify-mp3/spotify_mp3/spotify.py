@@ -107,9 +107,7 @@ class SpotifyClient:
         raise ValueError(f"Unrecognized Spotify URL/URI: {url_or_uri}")
 
     def _fetch_all_playlist_tracks(self, uri: str) -> tuple[str, list[TrackMeta]]:
-        playlist = _spotify_retry(self._sp.playlist)(
-            uri, fields="name,tracks(items(track(name,artists,album,track_number,uri)),next,total)"
-        )
+        playlist = _spotify_retry(self._sp.playlist)(uri)
         name = playlist["name"]
         results = playlist["tracks"]
         tracks = []
