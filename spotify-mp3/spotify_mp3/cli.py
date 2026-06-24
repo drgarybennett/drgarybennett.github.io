@@ -49,6 +49,12 @@ def main():
         action="store_true",
         help="Print track list without downloading",
     )
+    parser.add_argument(
+        "--browser",
+        default=None,
+        choices=["chrome", "safari", "firefox", "edge", "brave", "chromium"],
+        help="Pass cookies from this browser to bypass YouTube bot detection",
+    )
     args = parser.parse_args()
 
     client = SpotifyClient()
@@ -77,7 +83,7 @@ def main():
 
     failed: list = []
     for meta in tqdm(tracks, desc=context_name, unit="track"):
-        result = download_track(meta, output_dir, ffmpeg_path=args.ffmpeg_path)
+        result = download_track(meta, output_dir, ffmpeg_path=args.ffmpeg_path, browser=args.browser)
         if result is None:
             failed.append(meta)
             continue

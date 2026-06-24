@@ -37,6 +37,7 @@ def download_track(
     meta: TrackMeta,
     output_dir: Path,
     ffmpeg_path: Optional[str] = None,
+    browser: Optional[str] = None,
     ydl_class: Type = yt_dlp.YoutubeDL,
 ) -> Optional[Path]:
     """
@@ -84,8 +85,10 @@ def download_track(
     }
     if ffmpeg_path:
         download_opts["ffmpeg_location"] = ffmpeg_path
+    if browser:
+        download_opts["cookiesfrombrowser"] = (browser,)
 
-    candidates = _search_candidates(query, ydl_class)
+    candidates = _search_candidates(query, ydl_class, browser=browser)
     if not candidates:
         return None
 
@@ -100,7 +103,7 @@ def download_track(
     return None
 
 
-def _search_candidates(query: str, ydl_class: type) -> list[str]:
+def _search_candidates(query: str, ydl_class: type, browser: Optional[str] = None) -> list[str]:
     """Return up to _SEARCH_COUNT YouTube video URLs for the query."""
     opts = {
         "quiet": True,
@@ -108,6 +111,8 @@ def _search_candidates(query: str, ydl_class: type) -> list[str]:
         "extract_flat": True,
         "noplaylist": False,
     }
+    if browser:
+        opts["cookiesfrombrowser"] = (browser,)
     try:
         with ydl_class(opts) as ydl:
             info = ydl.extract_info(query, download=False)
