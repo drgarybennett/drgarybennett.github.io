@@ -72,7 +72,7 @@ class SpotifyClient:
     """
 
     def __init__(self):
-        redirect_uri = os.environ.get("SPOTIFY_REDIRECT_URI", "http://localhost:8888/callback")
+        redirect_uri = os.environ.get("SPOTIFY_REDIRECT_URI", "http://127.0.0.1:8888/callback")
         auth = SpotifyOAuth(
             client_id=os.environ.get("SPOTIFY_CLIENT_ID"),
             client_secret=os.environ.get("SPOTIFY_CLIENT_SECRET"),
