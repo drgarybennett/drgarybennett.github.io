@@ -109,7 +109,9 @@ class SpotifyClient:
     def _fetch_all_playlist_tracks(self, uri: str) -> tuple[str, list[TrackMeta]]:
         playlist = _spotify_retry(self._sp.playlist)(uri)
         name = playlist["name"]
-        results = playlist["tracks"]
+        # Spotify API no longer includes tracks in the playlist() response;
+        # fetch them separately via playlist_items().
+        results = _spotify_retry(self._sp.playlist_items)(uri)
         tracks = []
         while True:
             for item in results["items"]:
