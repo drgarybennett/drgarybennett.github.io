@@ -15,6 +15,7 @@ Retries wrap individual calls rather than the whole pagination loop to avoid
 re-fetching already-consumed pages on a mid-loop failure.
 """
 
+import os
 import re
 from dataclasses import dataclass
 from typing import Optional
@@ -64,7 +65,10 @@ class SpotifyClient:
     """
 
     def __init__(self):
-        auth = SpotifyClientCredentials()
+        auth = SpotifyClientCredentials(
+            client_id=os.environ.get("SPOTIFY_CLIENT_ID"),
+            client_secret=os.environ.get("SPOTIFY_CLIENT_SECRET"),
+        )
         self._sp = spotipy.Spotify(auth_manager=auth)
 
     def get_tracks(self, url_or_uri: str) -> tuple[str, list[TrackMeta]]:
