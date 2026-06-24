@@ -6,8 +6,15 @@ Public surface:
     SpotifyClient.get_tracks(url_or_uri) — resolves a Spotify URL or URI to a
         (context_name, [TrackMeta]) tuple, handling tracks, playlists, and albums.
 
-Authentication is read automatically from the environment variables
-SPOTIFY_CLIENT_ID and SPOTIFY_CLIENT_SECRET (set by the caller before import).
+Authentication uses the Authorization Code flow (SpotifyOAuth). On first run
+a browser window opens for you to log in to Spotify and approve the app.
+The token is cached in .spotify_cache so subsequent runs are silent.
+
+Required environment variables:
+    SPOTIFY_CLIENT_ID      — from developer.spotify.com/dashboard
+    SPOTIFY_CLIENT_SECRET  — from developer.spotify.com/dashboard
+    SPOTIFY_REDIRECT_URI   — must match what's set in the dashboard
+                             (default: http://localhost:8888/callback)
 
 All Spotify API calls are wrapped with per-call retry (3 attempts, exponential
 backoff 2–30 s) so transient 429 / 5xx responses are handled transparently.
@@ -21,7 +28,7 @@ from dataclasses import dataclass
 from typing import Optional
 
 import spotipy
-from spotipy.oauth2 import SpotifyClientCredentials
+from spotipy.oauth2 import SpotifyOAuth
 from tenacity import retry, stop_after_attempt, wait_exponential
 
 _spotify_retry = retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, min=2, max=30))
@@ -65,9 +72,14 @@ class SpotifyClient:
     """
 
     def __init__(self):
-        auth = SpotifyClientCredentials(
+        redirect_uri = os.environ.get("SPOTIFY_REDIRECT_URI", "http://localhost:8888/callback")
+        auth = SpotifyOAuth(
             client_id=os.environ.get("SPOTIFY_CLIENT_ID"),
             client_secret=os.environ.get("SPOTIFY_CLIENT_SECRET"),
+            redirect_uri=redirect_uri,
+            scope="playlist-read-private playlist-read-collaborative",
+            cache_path=".spotify_cache",
+            open_browser=True,
         )
         self._sp = spotipy.Spotify(auth_manager=auth)
 

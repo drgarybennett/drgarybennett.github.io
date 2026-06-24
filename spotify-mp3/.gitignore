@@ -1,3 +1,5 @@
+.spotify_cache
+path/
 __pycache__/
 *.pyc
 *.pyo
