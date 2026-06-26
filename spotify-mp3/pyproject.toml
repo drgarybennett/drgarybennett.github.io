@@ -1,0 +1,22 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "spotify-mp3"
+version = "1.0.0"
+requires-python = ">=3.10"
+dependencies = [
+    "spotipy>=2.23.0",
+    "yt-dlp>=2024.1.0",
+    "mutagen>=1.47.0",
+    "tenacity>=8.2.0",
+    "tqdm>=4.66.0",
+    "requests>=2.31.0",
+]
+
+[project.scripts]
+spotify-mp3 = "spotify_mp3.cli:main"
+
+[tool.setuptools.packages.find]
+include = ["spotify_mp3*"]
