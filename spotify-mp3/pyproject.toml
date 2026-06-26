@@ -17,3 +17,6 @@ dependencies = [
 
 [project.scripts]
 spotify-mp3 = "spotify_mp3.cli:main"
+
+[tool.setuptools.packages.find]
+include = ["spotify_mp3*"]
