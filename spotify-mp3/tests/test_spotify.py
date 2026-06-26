@@ -82,7 +82,8 @@ def test_playlist_pagination_exhausted():
     page2 = {"items": [_mock_track_item("T2")], "next": None}
 
     sp = MagicMock()
-    sp.playlist.return_value = {"name": "My Playlist", "tracks": page1}
+    sp.playlist.return_value = {"name": "My Playlist"}
+    sp.playlist_items.return_value = page1
     sp.next.return_value = page2
 
     client = SpotifyClient.__new__(SpotifyClient)
@@ -97,13 +98,14 @@ def test_playlist_pagination_exhausted():
 def test_deleted_track_in_playlist_skipped():
     page = {
         "items": [
-            {"track": None},
+            None,
             _mock_track_item("Real Track"),
         ],
         "next": None,
     }
     sp = MagicMock()
-    sp.playlist.return_value = {"name": "Playlist", "tracks": page}
+    sp.playlist.return_value = {"name": "Playlist"}
+    sp.playlist_items.return_value = page
 
     client = SpotifyClient.__new__(SpotifyClient)
     client._sp = sp

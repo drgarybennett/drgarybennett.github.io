@@ -95,7 +95,9 @@ def test_falls_through_to_second_candidate(tmp_path, sample_meta):
 
     result = download_track(sample_meta, tmp_path, ydl_class=FallbackYDL)
     assert result is not None
-    assert call_count == 2
+    # _run_download retries up to 3x on DownloadError (tenacity), so blocked1
+    # is attempted 3 times before good2 succeeds on its first try → 4 total.
+    assert call_count == 4
 
 
 def test_noplaylist_set_in_download_opts(tmp_path, sample_meta):

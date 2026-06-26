@@ -66,7 +66,6 @@ def download_track(
         return output_path
 
     output_dir.mkdir(parents=True, exist_ok=True)
-    query = f"ytsearch{_SEARCH_COUNT}:{meta.artist} {meta.title} official audio"
     stem = Path(meta.output_filename).stem
     outtmpl = str(output_dir / f"{stem}.%(ext)s")
 
@@ -88,7 +87,7 @@ def download_track(
     if browser:
         download_opts["cookiesfrombrowser"] = (browser,)
 
-    candidates = _search_candidates(query, ydl_class, browser=browser)
+    candidates = _gather_candidates(meta.artist, meta.title, ydl_class, browser=browser)
     if not candidates:
         return None
 
@@ -103,27 +102,54 @@ def download_track(
     return None
 
 
-def _search_candidates(query: str, ydl_class: type, browser: Optional[str] = None) -> list[str]:
-    """Return up to _SEARCH_COUNT YouTube video URLs for the query."""
-    opts = {
-        "quiet": True,
-        "no_warnings": True,
-        "extract_flat": True,
-        "noplaylist": False,
-    }
-    if browser:
-        opts["cookiesfrombrowser"] = (browser,)
-    try:
-        with ydl_class(opts) as ydl:
-            info = ydl.extract_info(query, download=False)
-            entries = info.get("entries") or []
-            return [
-                f"https://www.youtube.com/watch?v={e['id']}"
-                for e in entries
-                if e and e.get("id")
-            ]
-    except Exception:
-        return []
+def _query_variations(artist: str, title: str) -> list[str]:
+    """Return search queries from most specific to broadest."""
+    return [
+        f"ytsearch{_SEARCH_COUNT}:{artist} {title} official audio",
+        f"ytsearch{_SEARCH_COUNT}:{artist} {title} official video",
+        f"ytsearch{_SEARCH_COUNT}:{artist} {title} lyrics",
+        f"ytsearch{_SEARCH_COUNT}:{artist} {title}",
+        f"ytsearch{_SEARCH_COUNT}:{title} {artist}",
+    ]
+
+
+def _gather_candidates(
+    artist: str,
+    title: str,
+    ydl_class: type,
+    browser: Optional[str] = None,
+) -> list[str]:
+    """
+    Collect unique YouTube video URLs across multiple query variations.
+    Tries each query in order and stops once enough candidates are gathered.
+    """
+    seen: set[str] = set()
+    candidates: list[str] = []
+
+    for query in _query_variations(artist, title):
+        opts = {
+            "quiet": True,
+            "no_warnings": True,
+            "extract_flat": True,
+            "noplaylist": False,
+        }
+        if browser:
+            opts["cookiesfrombrowser"] = (browser,)
+        try:
+            with ydl_class(opts) as ydl:
+                info = ydl.extract_info(query, download=False)
+                for e in (info.get("entries") or []):
+                    vid_id = e.get("id") if e else None
+                    if vid_id and vid_id not in seen:
+                        seen.add(vid_id)
+                        candidates.append(f"https://www.youtube.com/watch?v={vid_id}")
+        except Exception:
+            continue
+
+        if len(candidates) >= _SEARCH_COUNT * 2:
+            break
+
+    return candidates
 
 
 @retry(
